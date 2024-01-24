@@ -21,6 +21,7 @@ var (
 	listenAddr = flag.String("listen-addr", ":9700", "Address the ZFS exporter should listen on")
 	vdevDepth  = flag.Int("depth", 1, "Depth of the vdev tree to report on. 0 is the pool, 1 is top level vdevs, 2 is devices too")
 	fullPath   = flag.Bool("fullpath", false, "Report the full path of disks")
+	nodePath   = flag.String("nodepath", "/dev/zfs", "Node path of zfs")
 )
 
 type stat struct {
@@ -441,7 +442,9 @@ func (c *zfsCollector) Collect(ch chan<- prometheus.Metric) {
 }
 
 func main() {
-	err := ioctl.Init("")
+	flag.Parse()
+
+	err := ioctl.Init(*nodePath)
 	if err != nil {
 		log.Fatalf("ioctl.Init failed: %v", err)
 	}
@@ -449,8 +452,9 @@ func main() {
 	c := zfsCollector{}
 	prometheus.MustRegister(&c)
 
-	flag.Parse()
 	http.Handle("/metrics", promhttp.Handler())
+
+	log.Printf("Listening on %v", *listenAddr)
 	if err := http.ListenAndServe(*listenAddr, nil); err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
